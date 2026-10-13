@@ -1208,6 +1208,10 @@ struct TabBarView: View {
     }
 
     var body: some View {
+        let _ = controller.internalController.recordTabBarRender(
+            paneId: pane.id,
+            tabCount: pane.tabs.count
+        )
         HStack(spacing: 0) {
             if appearance.tabBarLeadingInset > 0 && controller.internalController.rootNode.allPaneIds.first == pane.id {
                 TabBarDragZoneView(

@@ -95,6 +95,38 @@ final class TabBarRenderWorkTests: XCTestCase {
         XCTAssertEqual(stateEvaluations, 1, "One menu build reads one state value")
     }
 
+    func testSustainedTabBarRendersEmitOneDiagnostic() throws {
+        let controller = BonsplitController()
+        let pane = try XCTUnwrap(controller.internalController.rootNode.allPanes.first)
+        var diagnostics: [TabBarRenderDiagnostic] = []
+        controller.onTabBarRenderDiagnostic = { diagnostics.append($0) }
+
+        for _ in 0..<15 {
+            controller.internalController.recordTabBarRender(
+                paneId: pane.id,
+                tabCount: pane.tabs.count,
+                now: 100
+            )
+        }
+        XCTAssertTrue(diagnostics.isEmpty)
+
+        controller.internalController.recordTabBarRender(
+            paneId: pane.id,
+            tabCount: pane.tabs.count,
+            now: 100.5
+        )
+        XCTAssertEqual(diagnostics.count, 1)
+        XCTAssertEqual(diagnostics[0].renderCount, 16)
+        XCTAssertEqual(diagnostics[0].paneCount, 1)
+
+        controller.internalController.recordTabBarRender(
+            paneId: pane.id,
+            tabCount: pane.tabs.count,
+            now: 100.6
+        )
+        XCTAssertEqual(diagnostics.count, 1)
+    }
+
     private func settleLayout(in window: NSWindow, hostingView: NSView, passes: Int = 6) {
         for _ in 0..<passes {
             window.contentView?.layoutSubtreeIfNeeded()

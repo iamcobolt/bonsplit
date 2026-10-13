@@ -88,6 +88,52 @@ final class SplitViewController {
     /// Callback for geometry changes
     var onGeometryChange: (() -> Void)?
 
+    @ObservationIgnored private var tabBarRenderWindowStart: TimeInterval = 0
+    @ObservationIgnored private var tabBarRenderWindowRenderCount = 0
+    @ObservationIgnored private var tabBarRenderWindowTabCount = 0
+    @ObservationIgnored private var tabBarRenderWindowPanes: Set<PaneID> = []
+    @ObservationIgnored private var tabBarRenderWindowReported = false
+
+    /// Records a tab-bar body evaluation and emits one diagnostic for a sustained
+    /// render window. This is intentionally inactive unless the host installs a
+    /// diagnostic handler, so normal rendering pays only the nil check.
+    func recordTabBarRender(
+        paneId: PaneID,
+        tabCount: Int,
+        now: TimeInterval = ProcessInfo.processInfo.systemUptime
+    ) {
+        guard let handler = publicController?.onTabBarRenderDiagnostic else { return }
+
+        if tabBarRenderWindowStart == 0 || now - tabBarRenderWindowStart > 1 {
+            tabBarRenderWindowStart = now
+            tabBarRenderWindowRenderCount = 0
+            tabBarRenderWindowTabCount = 0
+            tabBarRenderWindowPanes.removeAll(keepingCapacity: true)
+            tabBarRenderWindowReported = false
+        }
+
+        tabBarRenderWindowRenderCount += 1
+        tabBarRenderWindowTabCount += tabCount
+        tabBarRenderWindowPanes.insert(paneId)
+
+        let elapsed = now - tabBarRenderWindowStart
+        guard !tabBarRenderWindowReported,
+              elapsed >= 0.5,
+              tabBarRenderWindowRenderCount >= 16 else {
+            return
+        }
+
+        tabBarRenderWindowReported = true
+        handler(
+            TabBarRenderDiagnostic(
+                elapsed: elapsed,
+                renderCount: tabBarRenderWindowRenderCount,
+                tabCount: tabBarRenderWindowTabCount,
+                paneCount: tabBarRenderWindowPanes.count
+            )
+        )
+    }
+
     /// Live divider drag sessions across every split in this tree (0 or 1 in
     /// practice — AppKit tracks one divider at a time). Sessions bracket the
     /// divider's mouse-tracking lifecycle, so external sizing can consult
