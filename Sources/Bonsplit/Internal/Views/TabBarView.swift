@@ -3358,6 +3358,11 @@ private final class TabControlShortcutKeyMonitor {
     }
 
     func start() {
+        // Resolve the configured symbol before the first update: one that
+        // queues a hint while the modifier is already held keeps the symbol.
+        if !isShortcutHintVisible {
+            shortcutModifierSymbol = TabControlShortcutHintPolicy.configuredShortcutModifierSymbol()
+        }
         guard flagsMonitor == nil else {
             update(from: NSEvent.modifierFlags, eventWindow: nil)
             return
