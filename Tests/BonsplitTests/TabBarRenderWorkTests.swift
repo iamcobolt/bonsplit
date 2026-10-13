@@ -101,11 +101,11 @@ final class TabBarRenderWorkTests: XCTestCase {
         var diagnostics: [TabBarRenderDiagnostic] = []
         controller.onTabBarRenderDiagnostic = { diagnostics.append($0) }
 
-        for _ in 0..<15 {
+        for index in 0..<31 {
             controller.internalController.recordTabBarRender(
                 paneId: pane.id,
                 tabCount: pane.tabs.count,
-                now: 100
+                now: 100 + Double(index) * (0.5 / 31)
             )
         }
         XCTAssertTrue(diagnostics.isEmpty)
@@ -116,7 +116,7 @@ final class TabBarRenderWorkTests: XCTestCase {
             now: 100.5
         )
         XCTAssertEqual(diagnostics.count, 1)
-        XCTAssertEqual(diagnostics[0].renderCount, 16)
+        XCTAssertEqual(diagnostics[0].renderCount, 32)
         XCTAssertEqual(diagnostics[0].paneCount, 1)
 
         controller.internalController.recordTabBarRender(

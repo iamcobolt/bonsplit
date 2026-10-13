@@ -89,6 +89,7 @@ final class SplitViewController {
     var onGeometryChange: (() -> Void)?
 
     @ObservationIgnored private var tabBarRenderWindowStart: TimeInterval = 0
+    @ObservationIgnored private var tabBarRenderWindowLastRender: TimeInterval = 0
     @ObservationIgnored private var tabBarRenderWindowRenderCount = 0
     @ObservationIgnored private var tabBarRenderWindowTabCount = 0
     @ObservationIgnored private var tabBarRenderWindowPanes: Set<PaneID> = []
@@ -96,22 +97,26 @@ final class SplitViewController {
 
     /// Records a tab-bar body evaluation and emits one diagnostic for a sustained
     /// render window. This is intentionally inactive unless the host installs a
-    /// diagnostic handler, so normal rendering pays only the nil check.
+    /// diagnostic handler. Hosts that install the handler pay the small counter
+    /// cost needed to identify a sustained render storm.
     func recordTabBarRender(
         paneId: PaneID,
         tabCount: Int,
         now: TimeInterval = ProcessInfo.processInfo.systemUptime
     ) {
-        guard let handler = publicController?.onTabBarRenderDiagnostic else { return }
-
-        if tabBarRenderWindowStart == 0 || now - tabBarRenderWindowStart > 1 {
-            tabBarRenderWindowStart = now
-            tabBarRenderWindowRenderCount = 0
-            tabBarRenderWindowTabCount = 0
-            tabBarRenderWindowPanes.removeAll(keepingCapacity: true)
-            tabBarRenderWindowReported = false
+        guard let handler = publicController?.onTabBarRenderDiagnostic else {
+            resetTabBarRenderWindow()
+            return
         }
 
+        if tabBarRenderWindowStart == 0
+            || now - tabBarRenderWindowLastRender > 0.1
+            || now - tabBarRenderWindowStart > 2 {
+            resetTabBarRenderWindow()
+            tabBarRenderWindowStart = now
+        }
+
+        tabBarRenderWindowLastRender = now
         tabBarRenderWindowRenderCount += 1
         tabBarRenderWindowTabCount += tabCount
         tabBarRenderWindowPanes.insert(paneId)
@@ -119,7 +124,7 @@ final class SplitViewController {
         let elapsed = now - tabBarRenderWindowStart
         guard !tabBarRenderWindowReported,
               elapsed >= 0.5,
-              tabBarRenderWindowRenderCount >= 16 else {
+              tabBarRenderWindowRenderCount >= 32 else {
             return
         }
 
@@ -132,6 +137,15 @@ final class SplitViewController {
                 paneCount: tabBarRenderWindowPanes.count
             )
         )
+    }
+
+    private func resetTabBarRenderWindow() {
+        tabBarRenderWindowStart = 0
+        tabBarRenderWindowLastRender = 0
+        tabBarRenderWindowRenderCount = 0
+        tabBarRenderWindowTabCount = 0
+        tabBarRenderWindowPanes.removeAll(keepingCapacity: true)
+        tabBarRenderWindowReported = false
     }
 
     /// Live divider drag sessions across every split in this tree (0 or 1 in

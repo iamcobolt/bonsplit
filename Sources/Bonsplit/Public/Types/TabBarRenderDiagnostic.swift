@@ -2,7 +2,7 @@ import Foundation
 
 /// A sampled report that tab-bar rendering stayed active across many view updates.
 public struct TabBarRenderDiagnostic: Sendable {
-    /// Elapsed main-thread time covered by the sampled render window.
+    /// Wall-clock duration covered by the sampled render window.
     public let elapsed: TimeInterval
 
     /// Number of tab-bar body evaluations in the sampled window.
