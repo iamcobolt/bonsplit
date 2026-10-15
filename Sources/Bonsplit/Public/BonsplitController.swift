@@ -812,8 +812,10 @@ public final class BonsplitController {
         let targetPaneId = paneId ?? sourcePane.id
         guard internalController.paneState(for: targetPaneId) != nil else { return nil }
 
-        // Check with delegate
-        if delegate?.splitTabBar(self, shouldSplitPane: targetPaneId, orientation: orientation) == false {
+        // Check with the delegate before removing the tab. Moving the only tab
+        // from its source requires a placeholder; hosts may not be able to
+        // safely repair that placeholder after mutation.
+        if delegate?.splitTabBar(self, shouldSplitPane: targetPaneId, orientation: orientation, movingTab: Tab(from: tabItem)) == false {
             return nil
         }
 
